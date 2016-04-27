@@ -1,3 +1,0 @@
-<?
-	echo 'Add new file';
-?>
