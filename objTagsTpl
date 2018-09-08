@@ -1,0 +1,11 @@
+[[!pdoResources? 
+  &tpl=`tags_obj_tex.tpl`
+  &tplWrapper=`objTagsWrap`
+  &parents=`0` 
+  &resources=`[[+ex:is=`0`:then=`[[+ex]],-[[*id]]`:else=`[[+ex]]`]]` 
+  &limit=`[[+limit]]`
+  &sortby=``
+  &sortdir=`ASC`
+  &showHidden=`1`
+  &includeTVs=`catalog_img`
+]]
