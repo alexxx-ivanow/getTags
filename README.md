@@ -5,9 +5,12 @@
 Для работы сниппета необходим установленный сниппет pdoResources;.
 
 Пример вызова сниппета:
-[[!getTags3? 
-&tpl=`peres_ch_tex` &parent=`9` 
-&tv_id = `4` &limit = `5`
+[[!newTags?  
+   &parent=`4`
+   &limit = `4`
+   &titleTags=`Аналогичные установки`
+   &exclude=`9`
+   &tplTags=`objTagsTpl`
 ]]
 
 Передаваемые параметры:
