@@ -1,0 +1,6 @@
+<div class="entry-content">
+    <div class="other-art-in">[[+titleTags]]</div>
+        <ul class="view_catalog">
+            [[+output]]
+        <ul>    
+</div>
