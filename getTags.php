@@ -1,98 +1,93 @@
 <?php
-//проверка наличия значения id родит.папки: $parent. По дефолту - родитель текущего ресурса
-if(!isset($parent)){
-    $parent = $modx->resource->get('parent');
-}
-$parent = explode(',',$parent);
-
-//проверка наличия значений чанка: $tpl. По дефолту - peres_ch_tex
-if(!isset($tpl)){
-    $tpl = 'peres_ch_tex';
-}
-
-//проверка наличия значения переменной, передающей id TV-поля, в котором хранятся теги
-if(!isset($tv_id)){
-    echo 'Задайте в сниппете `getTags` id TV-поля с тегами($tv_id)';
-    return;
+$query = $modx->newQuery('modTemplateVar');
+$query->where( array('name' => 'tags') );
+$res = $modx->getObject('modTemplateVar', $query);
+$tvid = '';
+if ($res) {
+  $tvid = $res->get('id');
+}else{
+    $tvid = 0;
 }
 
-//проверка наличия значения переменной, передающей из вызова сниппета 
-//количество выводимых в чанке совпадающих ресурсов
-if(!isset($limit)){
-    $limit = 0;
-}
+$parent = (isset($parent)) ? $parent : $modx->resource->parent;
+$depth = (isset($depth)) ? $depth : '5';
+$limit = (isset($limit)) ? $limit : '6';
+$exclude = (isset($exclude)) ? $exclude : '-1';
+$tplTags = (isset($tplTags)) ? $tplTags : '';
+$titleTags = (isset($titleTags)) ? $titleTags : 'Похожие позиции';
+$container = ($container == 1) ? '1' : '0';
 
-//Выборка всех тегов из TV=tags с текущего ресурса
-$views = $modx->resource->getTVValue('tags');
-//закидываем выборку в массив
-$tk = explode(',',$views);
+$views = $modx->resource->getTVValue($tvid);
+if(strlen($views) > 0){
+    $tk = explode(',',$views);
+    $ids = $modx->getChildIds($parent,$depth,array('context' => 'web'));
 
-//выборка всех TV, id которого задано в вызове сниппета
-$tvs = $modx->getCollection('modTemplateVarResource', array('tmplvarid' => $tv_id));
-
-//Выборка коллекции ресурсов из заданного родителя
-$tvss = $modx->newQuery('modResource');
-$tvss->where(array('parent:IN' => $parent));
-$collection = $modx->getCollection('modResource', $tvss);
-
-//создание массива id ресурсов, которые содержат выбранный TV с тегами
-foreach($collection as $coll){
-            foreach($tvs as $tvcoll){
-                if(($coll->get('id')) == ($tvcoll->get('contentid'))){
-            $tvsn[] = $tvcoll->get('contentid');
-            //print_r ($tvsn);
+    if($exclude > 0){
+        if(stristr($exclude, ',') === FALSE) {
+            $excludeChild = $modx->getChildIds($exclude,$depth,array('context' => 'web'));
+            $ids = array_diff($ids, $excludeChild);
+        }else{
+            $excludeChild = '';
+            $exclude = explode(',',$exclude);
+            foreach ($exclude as $exCh){
+                $arr = $modx->getChildIds($exCh, $depth, array('context' => 'web'));
+                $excludeChild .= implode(',',$arr).',';
+            }
+            $res = explode(',',$excludeChild);
+            array_pop($res);
+            $ids = array_diff($ids, $res);
         }
     }
-}
-//перебираем всю коллекцию TV, сравнивая с массивом id нужных нам ресурсов. Лишние - выкидываем.
-foreach ($tvs as $k => $tv) {
-   $tvs[$k] = $tv->toArray();
-    if(!in_array($tvs[$k]['contentid'], $tvsn)){
-        continue;
-    }
     
-   // Создаем массив тегов (tags) из для каждого текущего перебираемого ресурса
-    $tkk[$tvs[$k]['contentid']] = explode(',',$tvs[$k]['value']);
-   // print_r($tkk);
-}
-
-    $i = array();
-//перебираем массив значений тегов из TV текущего ресурса
-foreach($tk as $idd => $item1){
-    $news = $tk[$idd];
-    //перебираем массив тегов нужных ресурсов
-    foreach($tkk as $idk => $item2){
-        //print_r($item2);
-        //сравниваем отдельный тег нужного ресурса с отдельным тегом текущего ресурса
-        foreach($item2 as $k => $val){
-        //при их совпадении - закидываем в новый массив значение тега($val) 
-        //и ключ с id подошедшего ресурса($idk)
-        // $k - номер ключа значения тега в массиве
-        if($news === $item2[$k]){
-            $i[$k][$idk] = $val;
-       }
-     }
-   }
-}
-//перегоняем в компактный массив со значениями id ресурсов, в которых нашлись совпадающие теги.
-$arr  = array();
-foreach($i as $kk => $vv){
-    foreach($vv as $ki => $vvv){
-        $arr[]=$ki;
+    $tvs = $modx->getCollection('modResource', array('id:IN' => $ids));
+    
+    if($container == 0){
+            foreach ($tvs as $k => $tv) {    
+              if(($tv->getTVValue($tvid) != '') AND ($tv->isfolder == 0)){  
+                $tkk[ $tv->id] = explode(',',$tv->getTVValue($tvid));
+                $tkk[$k] +=  [contentid => $tv->id];
+                //echo $tkk[$k]['contentid'].',';
+                }
+            }        
+    }elseif($container == 1){
+        foreach ($tvs as $k => $tv) {
+            if(($tv->getTVValue($tvid) != '')){  
+            $tkk[ $tv->id] = explode(',',$tv->getTVValue($tvid));
+            $tkk[$k] +=  [contentid => $tv->id];
+            }
+        }    
+    }    
+  
+    $mass = [];
+    foreach($tkk as $to){
+        $result = array_intersect($to, $tk);
+        $result += [id => $to['contentid']]; 
+        $mass[] = $result;
+        $mass['id'] += $to['contentid']; 
     }
+    sort($mass);
+    $mass = array_reverse($mass);
+    $ex = [];
+    foreach($mass as $mas){
+            if(count($mas) > 1){
+                if($mas['id'] != $modx->resource->get('id')){ 
+                $ex[] = $mas['id'];
+                }
+            }
+        }
+         
+       if(count($ex) > 0){
+        $ex = implode($ex, ',');
+       }else{
+            $ex='0';
+        }
+    //echo $ex;
+    $output = $modx->getChunk($tplTags, array(
+       'ex' => $ex, 
+       'limit' => $limit, 
+       'titleTags' => $titleTags, 
+       'exclude' => $exclude,
+    ));
+    return $output;    
+        
 }
-//сортируем массив по частоте встречающихся значений(при этом ключ - id ресурса,
-//значение - количество повторов)
-  $arr = array_count_values($arr);
-  arsort($arr);
-//перегоняем ключи полученного массива(то есть, набор id) в строку
-$ex = implode(',',array_keys($arr));
-//если в строке пусто, передаем 0 в чанк(для скрытия заголовка блока)
-if(strlen($ex)<1)
-{$ex='0';}
-//передаем полученные значения в чанк для вывода в pdoResources
-$output = $modx->getChunk($tpl,array(
-   'ex' => $ex,
-   'limit' => $limit
-));
-return $output;
